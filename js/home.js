@@ -572,13 +572,7 @@ function toggleFullscreen() {
   }
 }
  
-['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(ev => document.addEventListener(ev, () => {
-  const icon = document.getElementById('fullscreen-icon');
-  if (!icon) return;
-  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-  icon.className = isFs ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-}));
- 
+
 document.addEventListener('keydown', e => {
   const modalOpen  = document.getElementById('modal').style.display === 'flex';
   const searchOpen = document.getElementById('search-modal').style.display === 'flex';
@@ -590,6 +584,24 @@ document.addEventListener('keydown', e => {
 });
  
 function toggleProfile() { showToast('👤 Profile coming soon!'); }
+
+/* ── FULLSCREEN DETECTOR PARA SA BUTTON ── */
+['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(ev => {
+  document.addEventListener(ev, () => {
+    const wrapper = document.getElementById('video-wrapper');
+    if (!wrapper) return;
+    
+    // Alamin kung naka-fullscreen ba
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    
+    // Magdagdag ng class kung fullscreen, tanggalin kung hindi
+    if (isFs) {
+      wrapper.classList.add('is-fullscreen');
+    } else {
+      wrapper.classList.remove('is-fullscreen');
+    }
+  });
+});
  
 /* ──────────────────────────────────────────
    GENRES

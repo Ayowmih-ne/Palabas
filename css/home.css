@@ -416,17 +416,32 @@ button { font-family: inherit; -webkit-appearance: none; touch-action: manipulat
 .modal-type-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); border: 1px solid rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 3px; }
 .modal-description { font-size: 0.9rem; line-height: 1.65; color: var(--text-secondary); margin-top: 8px; }
 
-/* ── Fullscreen toggle button ── */
+/* ── INVISIBLE FULLSCREEN INTERCEPTOR ── */
 #fullscreen-btn {
-  position: absolute; bottom: 10px; right: 10px; z-index: 20;
-  background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.2);
-  color: white; width: 36px; height: 36px; border-radius: 6px;
-  font-size: 14px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background var(--transition-fast), transform var(--transition-fast);
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  position: absolute; 
+  /* I-adjust mo ang bottom at right para sumakto sa native icon ng player */
+  bottom: 4px; 
+  right: 7px; 
+  z-index: 20;
+  
+  /* Mas malaking tap area para madaling pindutin sa mobile */
+  width: 45px; 
+  height: 40px; 
+  
+  /* GINAWA NATING INVISIBLE */
+  opacity: 1; 
+  background: rgba(255, 0, 0, 0.5); 
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* Tinatanggal yung blue tap effect sa mobile */
 }
-#fullscreen-btn:hover, #fullscreen-btn:active { background: rgba(229,9,20,0.8); transform: scale(1.1); }
+
+/* ── 2. FULLSCREEN STATE (Sa Loob) ── */
+/* Mas reliable ito dahil Javascript na ang naglalagay ng class! */
+#video-wrapper.is-fullscreen #fullscreen-btn { 
+  bottom: 12px !important; 
+  right: 31px !important; 
+}
 
 /* ═══════════════════════════════════════
    TV EPISODES
