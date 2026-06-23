@@ -2,23 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <meta name="theme-color" content="#141414"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
-  <meta name="apple-mobile-web-app-title" content="NyekFlix"/>
-  <meta name="mobile-web-app-capable" content="yes"/>
-  <link rel="manifest" href="manifest.json"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#141414" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="NyekFlix" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <title>NyekFlix ❤️</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#141414">
-<link rel="apple-touch-icon" href="icon-192.png"> <!-- Pang iPhone/iPad -->
-  <link rel="stylesheet" href="css/home.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <link rel="stylesheet" href="css/home.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
 
-  <!-- LOVE GATE -->
+  <!-- ══ LOVE GATE ══ -->
   <div id="kilig-modal" class="kilig-modal">
     <div class="kilig-content">
       <div class="kilig-heart">❤️</div>
@@ -33,7 +32,7 @@
     </div>
   </div>
 
-  <!-- NAVBAR -->
+  <!-- ══ NAVBAR ══ -->
   <nav class="navbar" id="navbar">
     <div class="netflix-logo">NYEKFLIX</div>
     <div class="nav-icons">
@@ -46,7 +45,7 @@
     </div>
   </nav>
 
-  <!-- BANNER -->
+  <!-- ══ BANNER ══ -->
   <div class="banner" id="banner">
     <div class="banner-gradient"></div>
     <div class="banner-content">
@@ -66,42 +65,38 @@
     </div>
   </div>
 
-  <!-- MAIN CONTENT -->
+  <!-- ══ MAIN CONTENT ══ -->
   <main class="main-content">
 
-    <!-- BROWSE BY GENRE -->
-<section class="section genre-section">
+    <!-- Browse by Genre -->
+    <section class="section genre-section">
+      <div class="genre-scroll" id="genre-list"></div>
+    </section>
 
-  <div class="genre-scroll" id="genre-list">
-    
-  </div>
+    <!-- Category Page (hidden by default) -->
+    <section id="category-page" class="section" style="display:none;">
+      <button class="back-category-btn" onclick="backToHome()">
+        <i class="fa-solid fa-arrow-left"></i> Back
+      </button>
+      <h2 class="section-title" id="category-title">Category</h2>
+      <div class="category-grid" id="category-grid"></div>
+      <div class="category-sentinel" id="category-sentinel"></div>
+    </section>
 
-</section>
-
-  <!-- CATEGORY PAGE (ILAGAY DITO) -->
-<section id="category-page" class="section" style="display:none">
-
-  <button class="back-category-btn" onclick="backToHome()">
-    <i class="fa-solid fa-arrow-left"></i> Back
-  </button>
-
-  <h2 class="section-title" id="category-title">
-    Action Movies
-  </h2>
-
-  <div class="carousel" id="category-list"></div>
-
-</section>
-  </section>
-    <!-- CONTINUE WATCHING -->
+    <!-- Continue Watching -->
     <section class="section" id="continue-watching-section" style="display:none;">
       <h2 class="section-title">Continue Watching <span class="title-tag">for you</span></h2>
       <div class="carousel" id="continue-watching-list"></div>
     </section>
 
+    <!-- Dynamic rows injected by JS (buildRows) -->
+
+    <!-- Infinite scroll sentinel -->
+    <div id="home-sentinel" class="home-sentinel"></div>
+
   </main>
 
-  <!-- DETAIL MODAL -->
+  <!-- ══ DETAIL MODAL ══ -->
   <div class="modal" id="modal" onclick="handleModalBackdropClick(event)">
     <div class="modal-content" id="modal-content-box">
 
@@ -109,11 +104,14 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <!-- VIDEO / THUMBNAIL -->
+      <!-- Video / Thumbnail -->
       <div class="modal-media-container">
         <img id="modal-image" src="" alt="Thumbnail" style="display:none; width:100%;" />
+
+        <!-- Videasy 16:9 container -->
         <div id="video-wrapper" style="display:none; position:relative; padding-bottom:56.25%; height:0; width:100%;">
-          <iframe id="modal-video"
+          <iframe
+            id="modal-video"
             style="position:absolute; top:0; left:0; width:100%; height:100%;"
             frameborder="0"
             allowfullscreen
@@ -121,16 +119,16 @@
             mozallowfullscreen
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share">
           </iframe>
-          <!-- Fullscreen button for mobile browsers that block iframe fullscreen -->
+
+          <!-- Custom fullscreen toggle (for browsers that block iframe fullscreen) -->
           <button id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen" aria-label="Toggle fullscreen">
             <i class="fa-solid fa-expand" id="fullscreen-icon"></i>
           </button>
         </div>
       </div>
 
-      <!-- MODAL BODY -->
+      <!-- Modal Body -->
       <div class="modal-body">
-
         <div class="modal-actions">
           <div>
             <h2 class="modal-title" id="modal-title">Title</h2>
@@ -140,40 +138,41 @@
             </div>
           </div>
         </div>
-
         <p class="modal-description" id="modal-description"></p>
 
-        <!-- TV CONTROLS -->
-        <div id="tv-controls" style="display:none; margin-top: 20px;">
+        <!-- TV Episode Controls -->
+        <div id="tv-controls" style="display:none; margin-top:20px;">
           <div class="season-header">
             <h3 class="episodes-label">Episodes</h3>
-            <select id="season-selector" onchange="loadEpisodes()" aria-label="Select season">
-            </select>
+            <select id="season-selector" onchange="loadEpisodes()" aria-label="Select season"></select>
           </div>
           <div class="episode-list" id="episode-list"></div>
         </div>
-
       </div>
+
     </div>
   </div>
 
-  <!-- SEARCH MODAL -->
+  <!-- ══ SEARCH MODAL ══ -->
   <div class="search-modal" id="search-modal">
     <div class="search-modal-header">
       <div class="search-input-wrap">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" id="search-input"
+        <input
+          type="text"
+          id="search-input"
           placeholder="Search movies, shows..."
-          oninput="searchTMDB()" autocomplete="off" />
+          oninput="searchTMDB()"
+          autocomplete="off"
+          aria-label="Search"
+        />
       </div>
-      <button class="search-close-btn" onclick="closeSearchModal()" aria-label="Close search">
-        Cancel
-      </button>
+      <button class="search-close-btn" onclick="closeSearchModal()" aria-label="Close search">Cancel</button>
     </div>
     <div class="results-grid" id="search-results"></div>
   </div>
 
-  <!-- FOOTER -->
+  <!-- ══ FOOTER ══ -->
   <footer class="footer">
     <p class="footer-brand">NYEKFLIX</p>
     <p class="footer-copy">&copy; 2026 NyekFlix. Made with ❤️ for Althea.</p>
@@ -182,15 +181,18 @@
       <a href="#" onclick="document.getElementById('banner-info-btn').click(); return false;">Featured</a>
     </div>
   </footer>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then(reg => console.log('NyekFlix App registered!', reg))
-        .catch(err => console.log('Service Worker failed: ', err));
-    });
-  }
-</script>
+
+  <!-- Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('NyekFlix SW registered!', reg))
+          .catch(err => console.warn('SW registration failed:', err));
+      });
+    }
+  </script>
+
   <script src="js/home.js"></script>
 </body>
 </html>
