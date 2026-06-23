@@ -2,7 +2,7 @@ const CACHE_NAME = 'nyekflix-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/style.css',
+  '/home.css',
   '/home.js'
 ];
 
