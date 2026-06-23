@@ -21,7 +21,7 @@ function unlockNyekFlix() {
   const modal = document.getElementById('kilig-modal');
   modal.style.animation = 'fadeIn 0.3s ease reverse';
   setTimeout(() => { modal.style.display = 'none'; }, 280);
-  showToast('❤️ I love you too!');
+  showToast('❤️ I love you Myyy!!');
 }
 
 function exitNyekFlix() {
