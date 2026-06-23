@@ -4,9 +4,10 @@
   "description": "Watch your favorite movies and TV shows!",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "landscape", 
   "background_color": "#141414",
   "theme_color": "#E50914",
-"icons": [
+  "icons": [
     {
       "src": "image/icon-192.png",
       "sizes": "192x192",
