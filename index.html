@@ -21,10 +21,10 @@
     <div class="kilig-content">
       <div class="kilig-heart">❤️</div>
       <h2>Hi Althea! ❤️</h2>
-      <p>Mag "I love you" ka muna bago manood...</p>
+      <p>Kainin mo muna tamod ko...</p>
       <div class="kilig-buttons">
         <button class="btn-iloveyou" onclick="unlockNyekFlix()">
-          <i class="fa-solid fa-heart"></i> I love you, Myy!
+          <i class="fa-solid fa-heart"></i> Okay ah ah ah
         </button>
         <button class="btn-ayoko" onclick="exitNyekFlix()">Ayoko!.</button>
       </div>
@@ -68,43 +68,33 @@
   <main class="main-content">
 
     <!-- BROWSE BY GENRE -->
-    <section class="section genre-section">
-      <div class="genre-scroll">
-        <button class="genre-btn" onclick="filterCategory('Action')">🔥 Action</button>
-        <button class="genre-btn" onclick="filterCategory('Comedy')">😂 Comedy</button>
-        <button class="genre-btn" onclick="filterCategory('Drama')">🎭 Drama</button>
-        <button class="genre-btn" onclick="filterCategory('Sci-Fi')">🚀 Sci-Fi</button>
-        <button class="genre-btn" onclick="filterCategory('Horror')">👻 Horror</button>
-        <button class="genre-btn" onclick="filterCategory('Romance')">💕 Romance</button>
-        <button class="genre-btn" onclick="filterCategory('Thriller')">😱 Thriller</button>
-        <button class="genre-btn" onclick="filterCategory('Animation')">🎨 Animation</button>
-        <button class="genre-btn" onclick="filterCategory('Fantasy')">🧙 Fantasy</button>
-        <button class="genre-btn" onclick="filterCategory('Mystery')">🕵️ Mystery</button>
-      </div>
-    </section>
+<section class="section genre-section">
 
+  <div class="genre-scroll" id="genre-list">
+    
+  </div>
+
+</section>
+
+  <!-- CATEGORY PAGE (ILAGAY DITO) -->
+<section id="category-page" class="section" style="display:none">
+
+  <button class="back-category-btn" onclick="backToHome()">
+    <i class="fa-solid fa-arrow-left"></i> Back
+  </button>
+
+  <h2 class="section-title" id="category-title">
+    Action Movies
+  </h2>
+
+  <div class="carousel" id="category-list"></div>
+
+</section>
+  </section>
     <!-- CONTINUE WATCHING -->
     <section class="section" id="continue-watching-section" style="display:none;">
       <h2 class="section-title">Continue Watching <span class="title-tag">for you</span></h2>
       <div class="carousel" id="continue-watching-list"></div>
-    </section>
-
-    <!-- TRENDING NOW -->
-    <section class="section">
-      <h2 class="section-title">Trending Now</h2>
-      <div class="carousel" id="trending-now-list"></div>
-    </section>
-
-    <!-- TOP 10 MOVIES -->
-    <section class="section">
-      <h2 class="section-title">Top 10 Movies <span class="title-tag">today</span></h2>
-      <div class="carousel ranked-carousel" id="top-10-movies-list"></div>
-    </section>
-
-    <!-- TOP 10 TV -->
-    <section class="section">
-      <h2 class="section-title">Top 10 TV Shows <span class="title-tag">today</span></h2>
-      <div class="carousel ranked-carousel" id="top-10-tv-list"></div>
     </section>
 
   </main>

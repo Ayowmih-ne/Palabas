@@ -6,6 +6,55 @@
 const API_KEY = '838275398c9b97c59f8109b1ee6de82f';
 const BASE    = 'https://api.themoviedb.org/3';
 const IMG     = 'https://image.tmdb.org/t/p';
+const rowPages = {};
+const HOME_ROWS = [
+
+{
+title:"Trending Now",
+endpoint:"/trending/all/day"
+},
+
+{
+title:"Popular Movies",
+endpoint:"/movie/popular"
+},
+
+{
+title:"Popular TV Shows",
+endpoint:"/tv/popular"
+},
+
+{
+title:"Top Rated Movies",
+endpoint:"/movie/top_rated"
+},
+
+{
+title:"Top Rated TV Shows",
+endpoint:"/tv/top_rated"
+},
+
+{
+title:"New Releases",
+endpoint:"/movie/now_playing"
+},
+
+{
+title:"English Movies",
+endpoint:"/discover/movie?with_original_language=en&sort_by=popularity.desc"
+},
+
+{
+title:"K-Dramas",
+endpoint:"/discover/tv?with_original_language=ko&sort_by=popularity.desc"
+},
+
+{
+title:"Filipino Movies",
+endpoint:"/discover/movie?with_origin_country=PH&sort_by=popularity.desc"
+}
+
+];
 
 // State
 let currentItem      = null;
@@ -13,6 +62,7 @@ let currentSeasonNum = 1;
 let currentEpisodeNum = 1;
 let searchDebounce   = null;
 let bannerItems      = [];
+let genres = [];
 
 /* ──────────────────────────────────────────
    LOVE GATE
@@ -107,8 +157,16 @@ function displayBanner(item) {
 
   document.getElementById('banner-title').textContent    = item.title || item.name;
   document.getElementById('banner-overview').textContent = item.overview || '';
-  document.getElementById('banner-play-btn').onclick      = () => showDetails(item);
-  document.getElementById('banner-info-btn').onclick      = () => showDetails(item);
+document.getElementById('banner-play-btn').onclick = () => showDetails(item);
+document.getElementById('banner-info-btn').onclick = () => showDetails(item);
+
+
+// AUTO PLAY PREVIEW
+setTimeout(() => {
+
+  playBannerPreview(item);
+
+}, 1000);
 }
 
 /* ──────────────────────────────────────────
@@ -221,13 +279,18 @@ async function showDetails(item) {
 
   const tvControls = document.getElementById('tv-controls');
 
-  if (item.media_type === 'tv') {
-    tvControls.style.display = 'block';
-    await loadSeasons(item.id);
-  } else {
-    tvControls.style.display = 'none';
-    playMovie(item.id);
-  }
+if (item.media_type === 'tv') {
+  tvControls.style.display = 'block';
+  await loadSeasons(item.id);
+} else {
+  tvControls.style.display = 'none';
+  playMovie(item.id);
+}
+
+// AUTO FULLSCREEN AFTER OPEN MOVIE
+setTimeout(() => {
+  toggleFullscreen();
+}, 800);
 
   // Scroll modal to top
   const box = document.getElementById('modal-content-box');
@@ -486,18 +549,71 @@ const genreMap = {
   Animation: 16, Fantasy: 14, Mystery: 9648
 };
 
-async function filterCategory(name) {
-  const genreId = genreMap[name];
-  if (!genreId) return;
-
+async function filterCategory(id, name) {
   try {
-    const data = await api(`/discover/movie?with_genres=${genreId}&sort_by=popularity.desc`);
-    openSearchModal();
-    document.getElementById('search-input').value = name;
-    renderSearchResults(data.results, `${name} Movies`);
-  } catch { showToast('Could not load genre.'); }
-}
+    const movies = await api(
+      `/discover/movie?with_genres=${id}&sort_by=popularity.desc&page=1`
+    );
 
+    // Itago ang ibang sections
+    document.querySelectorAll('.section').forEach(s => {
+      if (s.id !== 'category-page') {
+        s.style.display = 'none';
+      }
+    });
+
+    // Ipakita ang category page
+    document.getElementById('category-page').style.display = 'block';
+    document.getElementById('category-title').textContent = name;
+
+    // --- SETUP SCROLL BUTTONS PARA SA CATEGORY LIST ---
+    const container = document.getElementById('category-list');
+    let wrapper = container.parentElement;
+    
+    // Check natin kung nabalot na ba natin siya ng .row-container dati
+    if (!wrapper.classList.contains('row-container')) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'row-container';
+      
+      // I-insert ang wrapper sa DOM
+      container.parentNode.insertBefore(wrapper, container);
+      
+      // Left Button
+      const leftBtn = document.createElement("button");
+      leftBtn.className = "scroll-btn left-btn";
+      leftBtn.innerHTML = "&#10094;";
+      leftBtn.onclick = () => {
+        container.scrollBy({ left: -container.clientWidth, behavior: 'smooth' });
+      };
+
+      // Right Button
+      const rightBtn = document.createElement("button");
+      rightBtn.className = "scroll-btn right-btn";
+      rightBtn.innerHTML = "&#10095;";
+      rightBtn.onclick = () => {
+        container.scrollBy({ left: container.clientWidth, behavior: 'smooth' });
+      };
+
+      // Ipasok sa loob ng wrapper
+      wrapper.appendChild(leftBtn);
+      wrapper.appendChild(container);
+      wrapper.appendChild(rightBtn);
+    }
+    // ------------------------------------------------
+
+    // I-render ang mga cards
+    renderCards(movies.results, 'category-list');
+
+    // Scroll pa-taas
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+
+  } catch {
+    showToast("Failed loading category");
+  }
+}
 /* ──────────────────────────────────────────
    FULLSCREEN
 ────────────────────────────────────────── */
@@ -586,25 +702,20 @@ function toggleProfile() {
    INIT
 ────────────────────────────────────────── */
 async function init() {
+  loadGenres();
   loadContinueWatching();
 
   try {
     // Parallel fetch for speed
-    const [trending, topMovies, topTV] = await Promise.all([
-      api('/trending/all/day'),
-      api('/trending/movie/day'),
-      api('/trending/tv/day'),
-    ]);
+const trending = await api('/trending/all/day');
 
-    const bannerPool = trending.results.filter(i => i.backdrop_path);
-    if (bannerPool.length > 0) {
-      const pick = bannerPool[Math.floor(Math.random() * Math.min(bannerPool.length, 5))];
-      displayBanner(pick);
-    }
+const bannerPool = trending.results.filter(i=>i.backdrop_path);
 
-    renderCards(trending.results, 'trending-now-list');
-    renderCards(topMovies.results.slice(0, 10), 'top-10-movies-list', true);
-    renderCards(topTV.results.slice(0, 10), 'top-10-tv-list', true);
+displayBanner(
+bannerPool[Math.floor(Math.random()*bannerPool.length)]
+);
+
+await buildRows();
 
   } catch (err) {
     console.error('Init error:', err);
@@ -614,3 +725,281 @@ async function init() {
 }
 
 init();
+function backToHome(){
+
+  document.getElementById(
+    'category-page'
+  ).style.display='none';
+
+
+  document.querySelectorAll(
+    '.section'
+  ).forEach(section=>{
+
+    if(
+      section.id !== 'category-page'
+    ){
+      section.style.display='block';
+    }
+
+  });
+
+
+  window.scrollTo({
+    top:0,
+    behavior:'smooth'
+  });
+
+}
+function playBannerPreview(item){
+
+  const banner = document.getElementById('banner');
+
+
+  const iframe = document.createElement('iframe');
+
+
+  iframe.src =
+  `https://player.videasy.net/${item.media_type || 'movie'}/${item.id}?autoplay=true&muted=true`;
+
+
+  iframe.allow =
+  "autoplay; fullscreen";
+
+
+  iframe.style.position="absolute";
+  iframe.style.inset="0";
+  iframe.style.width="100%";
+  iframe.style.height="100%";
+  iframe.style.border="0";
+  iframe.style.zIndex="0";
+
+
+  banner.appendChild(iframe);
+
+
+  document.querySelector(
+    '.banner-gradient'
+  ).style.zIndex="2";
+
+
+  document.querySelector(
+    '.banner-content'
+  ).style.zIndex="3";
+
+}
+async function loadGenres(){
+
+try{
+
+const movieGenres =
+await api('/genre/movie/list');
+
+
+const tvGenres =
+await api('/genre/tv/list');
+
+
+// combine movie + tv
+const allGenres = [
+ ...movieGenres.genres,
+ ...tvGenres.genres
+];
+
+
+// remove duplicate
+genres =
+allGenres.filter(
+(g,i,self)=>
+i === self.findIndex(
+x=>x.id===g.id
+)
+);
+
+
+renderGenres();
+
+
+}catch(err){
+
+console.log("Genre error",err);
+
+}
+
+}
+function renderGenres() {
+  const container = document.getElementById('genre-list');
+  container.innerHTML = "";
+
+  // Balutin ng wrapper ang genre list para sa buttons kung wala pa
+  let wrapper = container.parentElement;
+  if (!wrapper.classList.contains('row-container')) {
+    wrapper = document.createElement('div');
+    wrapper.className = 'row-container genre-row-wrapper';
+    
+    // I-insert ang wrapper bago ang container sa DOM
+    container.parentNode.insertBefore(wrapper, container);
+    
+    // --- LEFT BUTTON ---
+    const leftBtn = document.createElement("button");
+    leftBtn.className = "scroll-btn left-btn";
+    leftBtn.innerHTML = "&#10094;";
+    leftBtn.onclick = () => {
+      // Half-screen scroll para mas smooth maghanap ng genre
+      container.scrollBy({ left: -container.clientWidth / 2, behavior: 'smooth' });
+    };
+
+    // --- RIGHT BUTTON ---
+    const rightBtn = document.createElement("button");
+    rightBtn.className = "scroll-btn right-btn";
+    rightBtn.innerHTML = "&#10095;";
+    rightBtn.onclick = () => {
+      container.scrollBy({ left: container.clientWidth / 2, behavior: 'smooth' });
+    };
+
+    // Ipasok ang left button, yung genre list mismo, at right button sa loob ng wrapper
+    wrapper.appendChild(leftBtn);
+    wrapper.appendChild(container); 
+    wrapper.appendChild(rightBtn);
+  }
+
+  // I-render ang mga genre buttons gaya ng dati
+  genres.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'genre-btn';
+    btn.textContent = g.name;
+    btn.onclick = () => {
+      filterCategory(g.id, g.name);
+    };
+    container.appendChild(btn);
+  });
+}
+async function buildRows() {
+  const main = document.querySelector("main");
+  document.querySelectorAll(".dynamic-row").forEach(e => e.remove());
+
+  for (const row of HOME_ROWS) {
+    const section = document.createElement("section");
+    section.className = "section dynamic-row";
+    
+    const title = document.createElement("h2");
+    title.className = "section-title";
+    title.textContent = row.title;
+
+    // Container na magho-hold sa carousel at buttons
+    const rowContainer = document.createElement("div");
+    rowContainer.className = "row-container";
+    rowContainer.style.position = "relative";
+    rowContainer.style.display = "flex";
+    rowContainer.style.alignItems = "center";
+
+    const list = document.createElement("div");
+    list.className = "carousel";
+    const id = "row-" + Math.random().toString(36).substring(2);
+    list.id = id;
+
+    // --- LEFT BUTTON ---
+    const leftBtn = document.createElement("button");
+    leftBtn.className = "scroll-btn left-btn";
+    leftBtn.innerHTML = "&#10094;"; // '<' icon
+    leftBtn.onclick = () => {
+      // Mag-i-scroll pabalik base sa lapad ng carousel
+      list.scrollBy({ left: -list.clientWidth, behavior: 'smooth' });
+    };
+
+    // --- RIGHT BUTTON ---
+    const rightBtn = document.createElement("button");
+    rightBtn.className = "scroll-btn right-btn";
+    rightBtn.innerHTML = "&#10095;"; // '>' icon
+    rightBtn.onclick = () => {
+      // Mag-i-scroll paabante base sa lapad ng carousel
+      list.scrollBy({ left: list.clientWidth, behavior: 'smooth' });
+    };
+
+    // Pagsama-samahin sa container
+    rowContainer.appendChild(leftBtn);
+    rowContainer.appendChild(list);
+    rowContainer.appendChild(rightBtn);
+
+    section.appendChild(title);
+    section.appendChild(rowContainer);
+    
+    main.appendChild(section);
+
+    loadRow(row, id);
+  }
+}
+async function loadRow(row, id) {
+
+    rowPages[id] = 1;
+
+    const separator = row.endpoint.includes("?") ? "&" : "?";
+
+    const data = await api(
+        `${row.endpoint}${separator}page=1`
+    );
+
+    renderCards(
+        data.results,
+        id
+    );
+
+    enableInfiniteRow(
+        id,
+        row
+    );
+}
+function enableInfiniteRow(id, row) {
+
+    const box = document.getElementById(id);
+
+    box.addEventListener("scroll", async () => {
+
+        if (box.scrollLeft + box.clientWidth >= box.scrollWidth - 300) {
+
+            rowPages[id]++;
+
+            let page = rowPages[id];
+
+            if (page > 500) {
+                page = 1;
+                rowPages[id] = 1;
+            }
+
+            const separator = row.endpoint.includes("?") ? "&" : "?";
+
+            const data = await api(
+                `${row.endpoint}${separator}page=${page}`
+            );
+
+            appendCards(
+                data.results,
+                id
+            );
+        }
+
+    });
+
+}
+function appendCards(items,id){
+
+const container=document.getElementById(id);
+
+items.forEach(item=>{
+
+if(!item.poster_path)return;
+
+const card=document.createElement("div");
+
+card.className="content-card";
+
+card.style.backgroundImage=
+`url(${img(item.poster_path,"w342")})`;
+
+card.onclick=()=>showDetails(item);
+
+container.appendChild(card);
+
+});
+
+}
