@@ -10,7 +10,9 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <link rel="manifest" href="manifest.json"/>
   <title>NyekFlix ❤️</title>
-
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#141414">
+<link rel="apple-touch-icon" href="icon-192.png"> <!-- Pang iPhone/iPad -->
   <link rel="stylesheet" href="css/home.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -180,7 +182,15 @@
       <a href="#" onclick="document.getElementById('banner-info-btn').click(); return false;">Featured</a>
     </div>
   </footer>
-
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('NyekFlix App registered!', reg))
+        .catch(err => console.log('Service Worker failed: ', err));
+    });
+  }
+</script>
   <script src="js/home.js"></script>
 </body>
 </html>
