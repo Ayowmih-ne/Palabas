@@ -583,12 +583,31 @@ document.addEventListener('keydown', e => {
 
 function toggleProfile() { showToast('👤 Profile coming soon!'); }
  
+/* ── FULLSCREEN LISTENER WITH AUTO-LANDSCAPE ── */
 ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(ev => {
   document.addEventListener(ev, () => {
     const wrapper = document.getElementById('video-wrapper');
     if (!wrapper) return;
+    
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-    if (isFs) wrapper.classList.add('is-fullscreen'); else wrapper.classList.remove('is-fullscreen');
+    
+    if (isFs) {
+      wrapper.classList.add('is-fullscreen');
+      
+      // I-FORCE NA HUMIGA (LANDSCAPE) ANG SELPON
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(err => {
+          console.warn('Auto-rotate ignored by browser:', err);
+        });
+      }
+    } else {
+      wrapper.classList.remove('is-fullscreen');
+      
+      // I-UNLOCK ANG ROTATION PAGKA-EXIT NG FULLSCREEN
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    }
   });
 });
  
