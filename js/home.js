@@ -310,7 +310,7 @@ function triggerSubtitleToast() {
 function playMovie(id) {
   const saved    = getSavedList().find(i => i.id === id);
   const progress = saved?.savedProgress ? `&progress=${saved.savedProgress}` : '';
-  document.getElementById('modal-video').src = `${videasyUrl('movie', id)}?overlay=true${progress}`;
+  document.getElementById('modal-video').src = `${videasyUrl('movie', id)}?color=8B5CF6&overlay=true${progress}`;
   triggerSubtitleToast();
 }
 
@@ -320,7 +320,7 @@ function playEpisode(season, episode) {
   const saved    = getSavedList().find(i => i.id === currentItem?.id);
   const sameEp   = saved?.savedSeason === currentSeasonNum && saved?.savedEpisode === currentEpisodeNum;
   const progress = sameEp && saved?.savedProgress ? `&progress=${saved.savedProgress}` : '';
-  const params   = `?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true${progress}`;
+  const params   = `?color=8B5CF6&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true${progress}`;
   document.getElementById('modal-video').src = `${videasyUrl('tv', currentItem.id, currentSeasonNum, currentEpisodeNum)}${params}`;
 
   document.querySelectorAll('.episode-item').forEach(el => el.classList.remove('active'));
@@ -334,7 +334,7 @@ function playAnilistEpisode(episode) {
   const saved    = getSavedList().find(i => i.id === currentItem?.id);
   const sameEp   = saved?.savedEpisode === currentEpisodeNum;
   const progress = sameEp && saved?.savedProgress ? `&progress=${saved.savedProgress}` : '';
-  const params   = `?nextEpisode=true&autoplayNextEpisode=true&overlay=true${progress}`;
+  const params   = `?color=8B5CF6&nextEpisode=true&autoplayNextEpisode=true&overlay=true${progress}`;
   document.getElementById('modal-video').src = `${videasyUrl('anime', currentItem.id, episode)}${params}`;
 
   document.querySelectorAll('.episode-item').forEach(el => el.classList.remove('active'));
