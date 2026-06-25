@@ -3,10 +3,10 @@
 ========================================= */
 'use strict';
 
-const API_KEY  = '838275398c9b97c59f8109b1ee6de82f';
-const BASE     = 'https://api.themoviedb.org/3';
-const IMG      = 'https://image.tmdb.org/t/p';
-const VIDEASY  = 'https://player.videasy.net';
+const API_KEY = '838275398c9b97c59f8109b1ee6de82f';
+
+const BASE = window.NYEKFLIX_SERVER.tmdb;
+const IMG  = window.NYEKFLIX_SERVER.image;
 
 const rowPages = {};
 
@@ -109,7 +109,7 @@ async function apiAnilist(sort, page = 1) {
 
   const variables = { page: page, perPage: 20, sort: sort };
 
-  const res = await fetch('https://graphql.anilist.co', {
+  const res = await fetch(window.NYEKFLIX_SERVER.anilist, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables })
@@ -197,15 +197,17 @@ function displayBanner(item) {
 }
 
 function playBannerPreview(item) {
-  const banner    = document.getElementById('banner');
-  const mediaType = item.media_type || 'movie';
-  const iframe    = document.createElement('iframe');
+  const banner = document.getElementById('banner');
+  const iframe = document.createElement('iframe');
 
-  const endpoint = item.is_anilist
-    ? `anime/${item.id}/1`
-    : `${mediaType}/${item.id}`;
+  if (item.is_anilist) {
+    iframe.src = window.NYEKFLIX_PLAYER.anime(item.id, 1);
+  } else if (item.media_type === 'tv' || (item.name && !item.title)) {
+    iframe.src = window.NYEKFLIX_PLAYER.tv(item.id, 1, 1);
+  } else {
+    iframe.src = window.NYEKFLIX_PLAYER.movie(item.id);
+  }
 
-  iframe.src   = `${VIDEASY}/${endpoint}?autoplay=true&muted=true`;
   iframe.allow = 'autoplay; fullscreen';
 
   Object.assign(iframe.style, {
@@ -219,6 +221,7 @@ function playBannerPreview(item) {
   });
 
   banner.appendChild(iframe);
+
   document.querySelector('.banner-gradient').style.zIndex = '2';
   document.querySelector('.banner-content').style.zIndex  = '3';
 }
@@ -391,9 +394,6 @@ function handleModalBackdropClick(e) {
 /* ──────────────────────────────────────────
    PLAYER
 ────────────────────────────────────────── */
-function videasyUrl(type, ...parts) {
-  return `${VIDEASY}/${type}/${parts.join('/')}`;
-}
 
 function triggerSubtitleToast() {
   setTimeout(() => {
@@ -402,11 +402,14 @@ function triggerSubtitleToast() {
 }
 
 function playMovie(id) {
-  const saved    = getSavedList().find(i => i.id === id);
-  const progress = saved?.savedProgress ? `&progress=${saved.savedProgress}` : '';
+  const saved = getSavedList().find(i => i.id === id);
+
+  const progress = saved?.savedProgress
+    ? saved.savedProgress
+    : null;
 
   document.getElementById('modal-video').src =
-    `${videasyUrl('movie', id)}?color=8B5CF6&overlay=true${progress}`;
+    window.NYEKFLIX_PLAYER.movie(id, progress);
 
   triggerSubtitleToast();
 }
@@ -415,44 +418,70 @@ function playEpisode(season, episode) {
   currentSeasonNum  = parseInt(season);
   currentEpisodeNum = parseInt(episode);
 
-  const saved    = getSavedList().find(i => i.id === currentItem?.id);
-  const sameEp   = saved?.savedSeason === currentSeasonNum && saved?.savedEpisode === currentEpisodeNum;
-  const progress = sameEp && saved?.savedProgress ? `&progress=${saved.savedProgress}` : '';
+  const saved = getSavedList().find(i => i.id === currentItem?.id);
 
-  const params = `?color=8B5CF6&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true${progress}`;
+  const sameEp =
+    saved?.savedSeason === currentSeasonNum &&
+    saved?.savedEpisode === currentEpisodeNum;
+
+  const progress = sameEp && saved?.savedProgress
+    ? saved.savedProgress
+    : null;
 
   document.getElementById('modal-video').src =
-    `${videasyUrl('tv', currentItem.id, currentSeasonNum, currentEpisodeNum)}${params}`;
+    window.NYEKFLIX_PLAYER.tv(
+      currentItem.id,
+      currentSeasonNum,
+      currentEpisodeNum,
+      progress
+    );
 
-  document.querySelectorAll('.episode-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.episode-item').forEach(el => {
+    el.classList.remove('active');
+  });
 
   const active = document.getElementById(`ep-${currentSeasonNum}-${currentEpisodeNum}`);
+
   if (active) {
     active.classList.add('active');
-    active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    active.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest'
+    });
   }
 
   triggerSubtitleToast();
 }
-
 function playAnilistEpisode(episode) {
   currentEpisodeNum = episode;
 
-  const saved    = getSavedList().find(i => i.id === currentItem?.id);
-  const sameEp   = saved?.savedEpisode === currentEpisodeNum;
-  const progress = sameEp && saved?.savedProgress ? `&progress=${saved.savedProgress}` : '';
+  const saved = getSavedList().find(i => i.id === currentItem?.id);
 
-  const params = `?color=8B5CF6&nextEpisode=true&autoplayNextEpisode=true&overlay=true${progress}`;
+  const sameEp = saved?.savedEpisode === currentEpisodeNum;
+
+  const progress = sameEp && saved?.savedProgress
+    ? saved.savedProgress
+    : null;
 
   document.getElementById('modal-video').src =
-    `${videasyUrl('anime', currentItem.id, episode)}${params}`;
+    window.NYEKFLIX_PLAYER.anime(
+      currentItem.id,
+      episode,
+      progress
+    );
 
-  document.querySelectorAll('.episode-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.episode-item').forEach(el => {
+    el.classList.remove('active');
+  });
 
   const active = document.getElementById(`ep-ani-${episode}`);
+
   if (active) {
     active.classList.add('active');
-    active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    active.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest'
+    });
   }
 
   triggerSubtitleToast();
