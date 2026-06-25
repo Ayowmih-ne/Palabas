@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="NyekFlix" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta http-equiv="Permissions-Policy" content="fullscreen=*" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <title>NyekFlix ❤️</title>
@@ -114,16 +115,8 @@
             id="modal-video"
             style="position:absolute; top:0; left:0; width:100%; height:100%;"
             frameborder="0"
-            allowfullscreen
-            webkitallowfullscreen
-            mozallowfullscreen
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share">
+            allowfullscreen>
           </iframe>
-
-          <!-- Custom fullscreen toggle (for browsers that block iframe fullscreen) -->
-          <button id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen" aria-label="Toggle fullscreen">
-            <i class="fa-solid fa-expand" id="fullscreen-icon"></i>
-          </button>
         </div>
       </div>
 
