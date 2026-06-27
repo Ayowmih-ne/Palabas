@@ -21,26 +21,284 @@ const IS_MOBILE_VIEW = window.matchMedia?.('(max-width: 640px), (hover: none), (
 const SAVE_DATA_MODE = navigator.connection?.saveData || false;
 
 /* ──────────────────────────────────────────
-   LOVE GATE & TOAST
+   LOVE GATE, VIDEO EASTER EGG & TOAST
 ────────────────────────────────────────── */
+const LOVE_EASTER_EGG_VIDEO = 'https://github.com/Ayowmih-ne/Palabas/releases/download/v1.0/iloveyou-myyy.mp4';
+
+let loveVideoGateActive = false;
+let loveVideoUnlocked = false;
+let loveVideoMaxTime = 0;
+let loveVideoPopstateBound = false;
+
+function ensureLoveGate() {
+  if (document.getElementById('kilig-modal')) return;
+
+  const gate = document.createElement('div');
+  gate.className = 'kilig-modal';
+  gate.id = 'kilig-modal';
+  gate.setAttribute('role', 'dialog');
+  gate.setAttribute('aria-modal', 'true');
+  gate.setAttribute('aria-labelledby', 'kilig-title');
+
+  gate.innerHTML = getLoveGateHTML();
+  document.body.prepend(gate);
+}
+
+function getLoveGateHTML() {
+  return `
+    <div class="kilig-content">
+      <div class="kilig-heart">❤️</div>
+      <h2 id="kilig-title">I love you ko muna myyy</h2>
+      <p>Piliin mo muna yung tamang sagot para ma-unlock ang NyekFlix.</p>
+      <div class="kilig-buttons">
+        <button class="btn-iloveyou" onclick="unlockNyekFlix()" autofocus>
+          <i class="fa-solid fa-heart"></i> I love you
+        </button>
+        <button class="btn-ayoko" onclick="exitNyekFlix()">Ayoko nga</button>
+      </div>
+    </div>
+  `;
+}
+
 function unlockNyekFlix() {
+  startLoveVideoGate();
+}
+
+function startLoveVideoGate() {
+  const modal = document.getElementById('kilig-modal') || (() => {
+    ensureLoveGate();
+    return document.getElementById('kilig-modal');
+  })();
+
+  if (!modal) return;
+
+  loveVideoGateActive = true;
+  loveVideoUnlocked = false;
+  loveVideoMaxTime = 0;
+
+  document.body.style.overflow = 'hidden';
+  modal.style.display = 'flex';
+  modal.style.animation = 'fadeIn 0.3s ease';
+  modal.removeAttribute('aria-hidden');
+
+  modal.innerHTML = `
+    <div class="love-video-content" role="document">
+      <div class="love-video-top">
+        <div>
+          <div class="love-video-kicker">Happy Monthsarry myyy ❤️</div>
+          <h2 id="kilig-title">Panoodin mo</h2>
+        </div>
+        <div class="love-video-lock">🔒 No skip</div>
+      </div>
+
+      <div class="love-video-wrap">
+        <video
+          id="love-gate-video"
+          src="${LOVE_EASTER_EGG_VIDEO}"
+          playsinline
+          preload="auto"
+          controlslist="nodownload noplaybackrate nofullscreen"
+          disablepictureinpicture
+          oncontextmenu="return false;">
+        </video>
+
+        <button class="love-video-play-btn" id="love-video-play-btn" type="button">
+          <i class="fa-solid fa-play"></i>
+          Play video
+        </button>
+      </div>
+
+      <div class="love-video-progress-track" aria-hidden="true">
+        <div class="love-video-progress-fill" id="love-video-progress-fill"></div>
+      </div>
+
+      <p class="love-video-note" id="love-video-note">
+        Kailangan matapos muna yung video bago ma-unlock ang NyekFlix. Bawal fast-forward. 😤❤️
+      </p>
+    </div>
+  `;
+
+  bindLoveVideoGate();
+  lockLoveGateHistory();
+}
+
+function bindLoveVideoGate() {
+  const video = document.getElementById('love-gate-video');
+  const playBtn = document.getElementById('love-video-play-btn');
+  const progress = document.getElementById('love-video-progress-fill');
+  const note = document.getElementById('love-video-note');
+
+  if (!video || !playBtn) return;
+
+  video.controls = false;
+  video.currentTime = 0;
+  loveVideoMaxTime = 0;
+
+  const playVideo = async () => {
+    try {
+      await video.play();
+      playBtn.classList.add('hide');
+      note.textContent = 'Myyy, panoorin mo hanggang matapos. ❤️';
+    } catch {
+      playBtn.classList.remove('hide');
+      note.textContent = 'Pindutin muna ang Play para magsimula yung easter egg. ❤️';
+    }
+  };
+
+  playBtn.addEventListener('click', playVideo);
+
+  video.addEventListener('play', () => {
+    playBtn.classList.add('hide');
+  });
+
+  video.addEventListener('pause', () => {
+    if (!loveVideoUnlocked && !video.ended) {
+      playBtn.classList.remove('hide');
+      note.textContent = 'Na-pause. I-play ulit para matapos at ma-unlock. 🔒';
+    }
+  });
+
+  video.addEventListener('loadedmetadata', () => {
+    loveVideoMaxTime = 0;
+    progress.style.width = '0%';
+  });
+
+  video.addEventListener('timeupdate', () => {
+    if (loveVideoUnlocked) return;
+
+    // Record only the natural watched position. Ito yung limit ng allowed seek.
+    loveVideoMaxTime = Math.max(loveVideoMaxTime, video.currentTime);
+
+    if (video.duration && Number.isFinite(video.duration)) {
+      const pct = Math.min((video.currentTime / video.duration) * 100, 100);
+      progress.style.width = `${pct}%`;
+    }
+  });
+
+  video.addEventListener('seeking', () => {
+    if (loveVideoUnlocked) return;
+
+    // Allow tiny browser drift and rewind, but block forward seek.
+    if (video.currentTime > loveVideoMaxTime + 0.75) {
+      video.currentTime = loveVideoMaxTime;
+      showToast('Bawal i-fast forward myyy 😤❤️', 2500);
+    }
+  });
+
+  video.addEventListener('ratechange', () => {
+    if (video.playbackRate !== 1) {
+      video.playbackRate = 1;
+      showToast('Normal speed lang dapat 😤', 2000);
+    }
+  });
+
+  video.addEventListener('ended', () => {
+    loveVideoUnlocked = true;
+    loveVideoGateActive = false;
+
+    const modal = document.getElementById('kilig-modal');
+    const content = modal?.querySelector('.love-video-content');
+
+    if (content) {
+      content.innerHTML = `
+        <div class="love-fullscreen-msg">
+          <div class="love-fullscreen-heart">❤️</div>
+          <h2>Mahal na mahal kita ng sobra</h2>
+          <p>Happy Monthsarry, Myyy ❤️</p>
+          <button class="love-video-play-btn" id="love-enter-btn" type="button">
+            <i class="fa-solid fa-heart"></i> Enter NyekFlix
+          </button>
+        </div>
+      `;
+
+      document.getElementById('love-enter-btn')
+        ?.addEventListener('click', closeLoveVideoGate);
+    }
+  });
+
+video.addEventListener('error', () => {
+  playBtn.classList.remove('hide');
+  playBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Video missing';
+  note.innerHTML = 'Hindi ma-load ang video.';
+  showToast('Missing MP4', 4000);
+});
+
+  playVideo();
+}
+
+function closeLoveVideoGate() {
   const modal = document.getElementById('kilig-modal');
-  modal.style.animation = 'fadeIn 0.3s ease reverse';
-  setTimeout(() => { modal.style.display = 'none'; }, 280);
-  showToast('❤️ I love you Myyy!!');
+
+  if (modal) {
+    modal.style.animation = 'fadeIn 0.3s ease reverse';
+    setTimeout(() => {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+      modal.innerHTML = getLoveGateHTML();
+    }, 280);
+  }
+
+  document.body.style.overflow = 'auto';
+  showToast('❤️ I love you Myyy!! NyekFlix unlocked!');
+}
+
+function lockLoveGateHistory() {
+  if (!loveVideoPopstateBound) {
+    loveVideoPopstateBound = true;
+
+    window.addEventListener('popstate', () => {
+      if (!loveVideoGateActive || loveVideoUnlocked) return;
+      history.pushState({ loveVideoGate: true }, '', location.href);
+      showToast('Tapusin muna yung video bago lumabas 😤❤️', 2500);
+    });
+  }
+
+  try {
+    history.pushState({ loveVideoGate: true }, '', location.href);
+  } catch {
+    // Some TV browsers may block history state. Okay lang, UI gate pa rin ang active.
+  }
 }
 
 function exitNyekFlix() {
-  showToast('😢 Balik ka ha... ❤️');
-  setTimeout(() => {
-    document.body.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#141414;color:#fff;font-family:sans-serif;gap:20px;text-align:center;padding:20px;">
-        <div style="font-size:4rem">💔</div>
-        <h2 style="font-size:1.5rem">Ayaw mo pala...</h2>
-        <p style="color:#aaa">Balik ka kapag handa ka na mag I love you. ❤️</p>
-        <button onclick="location.reload()" style="background:#E50914;color:white;border:none;padding:12px 28px;border-radius:50px;font-size:1rem;font-weight:700;cursor:pointer;">Ayoko na, babalik na ko ❤️</button>
-      </div>`;
-  }, 800);
+  const modal = document.getElementById('kilig-modal');
+
+  showToast('Hindi ka makakapag proceed hangga\'t hindi mo pinipili ang I love you 😤❤️', 3500);
+
+  if (!modal) {
+    ensureLoveGate();
+    return;
+  }
+
+  modal.style.display = 'flex';
+  modal.removeAttribute('aria-hidden');
+
+  const box = modal.querySelector('.kilig-content');
+  if (!box) return;
+
+  box.innerHTML = `
+    <div class="kilig-heart">🔒</div>
+    <h2 id="kilig-title">Locked muna myyy</h2>
+    <p>Hindi ka makakapag proceed sa NyekFlix kapag <b>Ayoko nga</b> ang pinili mo. Piliin mo muna ang tamang sagot para ma-unlock. ❤️</p>
+    <div class="kilig-buttons">
+      <button class="btn-iloveyou" onclick="unlockNyekFlix()" autofocus>
+        <i class="fa-solid fa-heart"></i> I love you
+      </button>
+      <button class="btn-ayoko" onclick="exitNyekFlix()">Ayoko nga pa rin</button>
+    </div>
+  `;
+
+  box.animate(
+    [
+      { transform: 'translateX(0)' },
+      { transform: 'translateX(-10px)' },
+      { transform: 'translateX(10px)' },
+      { transform: 'translateX(-6px)' },
+      { transform: 'translateX(6px)' },
+      { transform: 'translateX(0)' }
+    ],
+    { duration: 350, easing: 'ease' }
+  );
 }
 
 function showToast(msg, duration = 2500) {
@@ -982,16 +1240,42 @@ function backToHome() {
    UTILS
 ────────────────────────────────────────── */
 document.addEventListener('keydown', e => {
-  const modalOpen  = document.getElementById('modal').style.display === 'flex';
-  const searchOpen = document.getElementById('search-modal').style.display === 'flex';
-  const inInput    = document.activeElement.tagName === 'INPUT';
+  if (loveVideoGateActive && !loveVideoUnlocked) {
+    const blockedKeys = ['Escape', 'Backspace', 'ArrowRight', 'PageDown', 'End', 'MediaTrackNext', 'FastForward'];
+    if (blockedKeys.includes(e.key)) {
+      e.preventDefault();
+      e.stopPropagation();
+      showToast('Tapusin muna yung video myyy 😤❤️', 2200);
+      return;
+    }
+  }
+  const searchModal = document.getElementById('search-modal');
+  const searchInput = document.getElementById('search-input');
+
+  const searchOpen = searchModal?.style.display === 'flex';
+  const active = document.activeElement;
+
+  const inTypingField =
+    active &&
+    (
+      active.tagName === 'INPUT' ||
+      active.tagName === 'TEXTAREA' ||
+      active.isContentEditable
+    );
+
+  // FIX: kapag search modal open tapos Backspace pero wala sa input focus,
+  // huwag bumalik sa homepage/browser history. I-focus na lang search input.
+  if (searchOpen && e.key === 'Backspace' && !inTypingField) {
+    e.preventDefault();
+    searchInput?.focus();
+    return;
+  }
 
   if (e.key === 'Escape') {
-    if (modalOpen) closeModal();
     if (searchOpen) closeSearchModal();
   }
 
-  if (e.key === '/' && !inInput) {
+  if (e.key === '/' && !inTypingField) {
     e.preventDefault();
     openSearchModal();
   }
@@ -1226,4 +1510,6 @@ async function init() {
   }
 }
 
+ensureLoveGate();
 init();
+
