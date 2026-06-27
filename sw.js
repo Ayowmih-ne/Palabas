@@ -1,26 +1,40 @@
-const CACHE_NAME = 'nyekflix-v1';
+const CACHE_NAME = 'nyekflix-v2';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/home.css',
-  '/home.js'
+  '/css/home.css',
+  '/js/home.js',
+  '/js/server-config.js',
+  '/manifest.json'
 ];
 
-// Install Service Worker
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
+      .then(cache => cache.addAll(urlsToCache).catch(() => undefined))
+      .then(() => self.skipWaiting())
   );
 });
 
-// Fetch events para gumana kahit offline yung basic layout
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
+});
+
+// Network-first para fresh lagi ang JS/CSS after deploy; fallback lang sa cache kapag offline.
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
+    fetch(event.request)
+      .then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

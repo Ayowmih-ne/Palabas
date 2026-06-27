@@ -17,6 +17,9 @@ let currentEpisodeNum = 1;
 let searchDebounce    = null;
 let genres            = [];
 
+const IS_MOBILE_VIEW = window.matchMedia?.('(max-width: 640px), (hover: none), (pointer: coarse)')?.matches || false;
+const SAVE_DATA_MODE = navigator.connection?.saveData || false;
+
 /* ──────────────────────────────────────────
    LOVE GATE & TOAST
 ────────────────────────────────────────── */
@@ -193,12 +196,20 @@ function displayBanner(item) {
   document.getElementById('banner-play-btn').onclick     = () => showDetails(item);
   document.getElementById('banner-info-btn').onclick     = () => showDetails(item);
 
-  setTimeout(() => playBannerPreview(item), 1000);
+  if (!IS_MOBILE_VIEW && !SAVE_DATA_MODE) {
+    setTimeout(() => playBannerPreview(item), 1000);
+  }
 }
 
 function playBannerPreview(item) {
   const banner = document.getElementById('banner');
+  if (!banner) return;
+
+  // One hidden preview iframe is enough. Removing the old one avoids mobile lag / doubled audio.
+  banner.querySelectorAll('.banner-preview-frame').forEach(frame => frame.remove());
+
   const iframe = document.createElement('iframe');
+  iframe.className = 'banner-preview-frame';
 
   if (item.is_anilist) {
     iframe.src = window.NYEKFLIX_PLAYER.anime(item.id, 1);
@@ -208,7 +219,8 @@ function playBannerPreview(item) {
     iframe.src = window.NYEKFLIX_PLAYER.movie(item.id);
   }
 
-  iframe.allow = 'autoplay; fullscreen';
+  iframe.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
+  iframe.loading = 'lazy';
 
   Object.assign(iframe.style, {
     position: 'absolute',
@@ -262,7 +274,7 @@ function renderCards(items, containerId, ranked = false) {
     }
 
     if (containerId === 'continue-watching-list') {
-      const saved = getSavedList().find(i => i.id === item.id);
+      const saved = getSavedItem(item);
       if (saved?.savedProgress && saved?.duration) {
         const pct = Math.min((saved.savedProgress / saved.duration) * 100, 100);
         const bar = document.createElement('div');
@@ -306,27 +318,92 @@ function appendCards(items, id) {
 ────────────────────────────────────────── */
 const CW_KEY = 'nf_cw_v2';
 
+function getStoredMediaType(item = {}) {
+  if (item.is_anilist || item.media_type === 'anime' || item.mediaType === 'anime') return 'anime';
+  if (item.media_type === 'tv' || item.mediaType === 'tv' || (item.first_air_date && !item.release_date) || (item.name && !item.title)) return 'tv';
+  return 'movie';
+}
+
+function getContinueKey(item = {}) {
+  return item.cwKey || `${getStoredMediaType(item)}:${item.id}`;
+}
+
+function normalizeSavedItem(item = {}) {
+  const mediaType = getStoredMediaType(item);
+  return {
+    ...item,
+    media_type: item.media_type || mediaType,
+    mediaType,
+    cwKey: item.cwKey || `${mediaType}:${item.id}`
+  };
+}
+
 function getSavedList() {
   try {
-    return JSON.parse(localStorage.getItem(CW_KEY)) || [];
+    const raw = JSON.parse(localStorage.getItem(CW_KEY)) || [];
+    const seen = new Set();
+
+    return raw
+      .filter(item => item && item.id)
+      .map(normalizeSavedItem)
+      .filter(item => {
+        if (seen.has(item.cwKey)) return false;
+        seen.add(item.cwKey);
+        return true;
+      });
   } catch {
     return [];
   }
 }
 
-function addToContinueWatching(item) {
-  let list = getSavedList().filter(i => i.id !== item.id);
-  list.unshift(item);
+function getSavedItem(item) {
+  if (!item?.id) return null;
+  const key = getContinueKey(item);
+
+  // Prefer the new movie/tv/anime key. Fallback keeps old saved data working.
+  return getSavedList().find(i => i.cwKey === key) ||
+    getSavedList().find(i => i.id === item.id);
+}
+
+function addToContinueWatching(item, overrides = {}, options = {}) {
+  if (!item?.id) return item;
+
+  const incoming = normalizeSavedItem({ ...item, ...overrides });
+  const key = incoming.cwKey;
+  let list = getSavedList();
+  const existing = list.find(i => i.cwKey === key) || null;
+
+  const merged = normalizeSavedItem({
+    ...existing,
+    ...incoming,
+
+    // Keep resume data when opening from homepage/search.
+    savedProgress: incoming.savedProgress ?? existing?.savedProgress,
+    duration: incoming.duration ?? existing?.duration,
+    savedSeason: incoming.savedSeason ?? existing?.savedSeason,
+    savedEpisode: incoming.savedEpisode ?? existing?.savedEpisode,
+    lastWatchedAt: Date.now()
+  });
+
+  list = list.filter(i => i.cwKey !== key);
+  list.unshift(merged);
 
   if (list.length > 20) list = list.slice(0, 20);
 
   localStorage.setItem(CW_KEY, JSON.stringify(list));
-  loadContinueWatching();
+
+  if (options.refresh !== false) {
+    loadContinueWatching();
+  }
+
+  return merged;
 }
 
 function loadContinueWatching() {
   const list    = getSavedList();
   const section = document.getElementById('continue-watching-section');
+
+  if (!section) return;
 
   section.style.display = list.length > 0 ? 'block' : 'none';
 
@@ -339,20 +416,20 @@ function loadContinueWatching() {
    MODAL
 ────────────────────────────────────────── */
 async function showDetails(item) {
-  item.media_type = item.media_type || (item.name && !item.title ? 'tv' : 'movie');
+  item.media_type = item.media_type || getStoredMediaType(item);
 
-  currentItem = item;
-  addToContinueWatching(item);
+  // This returns the item merged with the old saved season/episode/progress.
+  currentItem = addToContinueWatching(item);
 
-  document.getElementById('modal-title').textContent       = getCardTitle(item);
-  document.getElementById('modal-description').textContent = item.overview || 'No description available.';
+  document.getElementById('modal-title').textContent       = getCardTitle(currentItem);
+  document.getElementById('modal-description').textContent = currentItem.overview || 'No description available.';
 
-  const stars = Math.round((item.vote_average || 0) / 2);
+  const stars = Math.round((currentItem.vote_average || 0) / 2);
 
   document.getElementById('modal-rating').textContent =
     stars > 0 ? '★'.repeat(stars) + '☆'.repeat(5 - stars) : '';
 
-  document.getElementById('modal-type-badge').textContent = getMediaLabel(item);
+  document.getElementById('modal-type-badge').textContent = getMediaLabel(currentItem);
 
   document.getElementById('modal').style.display         = 'flex';
   document.getElementById('modal-image').style.display   = 'none';
@@ -362,17 +439,17 @@ async function showDetails(item) {
   const tvControls   = document.getElementById('tv-controls');
   const seasonSelect = document.getElementById('season-selector');
 
-  if (item.is_anilist) {
+  if (currentItem.is_anilist || currentItem.media_type === 'anime') {
     tvControls.style.display   = 'block';
     seasonSelect.style.display = 'none';
     loadAnilistEpisodes();
-  } else if (item.media_type === 'tv') {
+  } else if (currentItem.media_type === 'tv') {
     tvControls.style.display   = 'block';
     seasonSelect.style.display = 'inline-block';
-    await loadSeasons(item.id);
+    await loadSeasons(currentItem.id);
   } else {
     tvControls.style.display = 'none';
-    playMovie(item.id);
+    playMovie(currentItem.id);
   }
 
   const box = document.getElementById('modal-content-box');
@@ -380,11 +457,19 @@ async function showDetails(item) {
 }
 
 function closeModal() {
+  if (pendingProgress) {
+    saveProgress(pendingProgress.time, pendingProgress.duration);
+    pendingProgress = null;
+    clearTimeout(progressSaveTimer);
+    progressSaveTimer = null;
+  }
+
   document.getElementById('modal').style.display         = 'none';
   document.getElementById('modal-video').src             = '';
   document.getElementById('video-wrapper').style.display = 'none';
   document.body.style.overflow                           = 'auto';
   currentItem = null;
+  loadContinueWatching();
 }
 
 function handleModalBackdropClick(e) {
@@ -401,40 +486,52 @@ function triggerSubtitleToast() {
   }, 2000);
 }
 
+function setPlayerSrc(url) {
+  const iframe = document.getElementById('modal-video');
+  if (!iframe) return;
+
+  // Setting src in one place helps avoid duplicate loads on mobile browsers.
+  if (iframe.src !== url) iframe.src = url;
+}
+
 function playMovie(id) {
-  const saved = getSavedList().find(i => i.id === id);
+  const saved = getSavedItem({ id, media_type: 'movie' });
 
   const progress = saved?.savedProgress
     ? saved.savedProgress
     : null;
 
-  document.getElementById('modal-video').src =
-    window.NYEKFLIX_PLAYER.movie(id, progress);
-
+  setPlayerSrc(window.NYEKFLIX_PLAYER.movie(id, progress));
   triggerSubtitleToast();
 }
 
 function playEpisode(season, episode) {
-  currentSeasonNum  = parseInt(season);
-  currentEpisodeNum = parseInt(episode);
+  currentSeasonNum  = parseInt(season, 10) || 1;
+  currentEpisodeNum = parseInt(episode, 10) || 1;
 
-  const saved = getSavedList().find(i => i.id === currentItem?.id);
+  const saved = getSavedItem(currentItem);
 
   const sameEp =
-    saved?.savedSeason === currentSeasonNum &&
-    saved?.savedEpisode === currentEpisodeNum;
+    Number(saved?.savedSeason) === currentSeasonNum &&
+    Number(saved?.savedEpisode) === currentEpisodeNum;
 
   const progress = sameEp && saved?.savedProgress
     ? saved.savedProgress
     : null;
 
-  document.getElementById('modal-video').src =
-    window.NYEKFLIX_PLAYER.tv(
-      currentItem.id,
-      currentSeasonNum,
-      currentEpisodeNum,
-      progress
-    );
+  currentItem = addToContinueWatching(currentItem, {
+    savedSeason: currentSeasonNum,
+    savedEpisode: currentEpisodeNum,
+    savedProgress: sameEp ? (saved?.savedProgress || 0) : 0,
+    duration: sameEp ? (saved?.duration || 0) : 0
+  });
+
+  setPlayerSrc(window.NYEKFLIX_PLAYER.tv(
+    currentItem.id,
+    currentSeasonNum,
+    currentEpisodeNum,
+    progress
+  ));
 
   document.querySelectorAll('.episode-item').forEach(el => {
     el.classList.remove('active');
@@ -452,29 +549,35 @@ function playEpisode(season, episode) {
 
   triggerSubtitleToast();
 }
+
 function playAnilistEpisode(episode) {
-  currentEpisodeNum = episode;
+  currentEpisodeNum = parseInt(episode, 10) || 1;
 
-  const saved = getSavedList().find(i => i.id === currentItem?.id);
+  const saved = getSavedItem(currentItem);
 
-  const sameEp = saved?.savedEpisode === currentEpisodeNum;
+  const sameEp = Number(saved?.savedEpisode) === currentEpisodeNum;
 
   const progress = sameEp && saved?.savedProgress
     ? saved.savedProgress
     : null;
 
-  document.getElementById('modal-video').src =
-    window.NYEKFLIX_PLAYER.anime(
-      currentItem.id,
-      episode,
-      progress
-    );
+  currentItem = addToContinueWatching(currentItem, {
+    savedEpisode: currentEpisodeNum,
+    savedProgress: sameEp ? (saved?.savedProgress || 0) : 0,
+    duration: sameEp ? (saved?.duration || 0) : 0
+  });
+
+  setPlayerSrc(window.NYEKFLIX_PLAYER.anime(
+    currentItem.id,
+    currentEpisodeNum,
+    progress
+  ));
 
   document.querySelectorAll('.episode-item').forEach(el => {
     el.classList.remove('active');
   });
 
-  const active = document.getElementById(`ep-ani-${episode}`);
+  const active = document.getElementById(`ep-ani-${currentEpisodeNum}`);
 
   if (active) {
     active.classList.add('active');
@@ -516,8 +619,8 @@ function loadAnilistEpisodes() {
   }
 
   if (total > 0) {
-    const saved   = getSavedList().find(i => i.id === currentItem?.id);
-    const startEp = saved?.savedEpisode || 1;
+    const saved   = getSavedItem(currentItem);
+    const startEp = Math.min(Math.max(Number(saved?.savedEpisode || currentItem.savedEpisode || 1), 1), total);
     playAnilistEpisode(startEp);
   }
 }
@@ -546,16 +649,25 @@ async function loadSeasons(tvId) {
       select.appendChild(opt);
     });
 
-    await loadEpisodes();
+    const saved = getSavedItem(currentItem);
+    const savedSeason = Number(saved?.savedSeason || currentItem.savedSeason);
+    const hasSavedSeason = seasons.some(s => Number(s.season_number) === savedSeason);
+
+    select.value = hasSavedSeason
+      ? String(savedSeason)
+      : String(seasons[0].season_number);
+
+    await loadEpisodes({ resumeSaved: true });
   } catch (err) {
     document.getElementById('tv-controls').style.display = 'none';
   }
 }
 
-async function loadEpisodes() {
+async function loadEpisodes(options = {}) {
   if (!currentItem) return;
 
-  const seasonNumber = document.getElementById('season-selector').value;
+  const select = document.getElementById('season-selector');
+  const seasonNumber = Number(select.value) || 1;
   const epList       = document.getElementById('episode-list');
 
   epList.innerHTML =
@@ -590,7 +702,18 @@ async function loadEpisodes() {
     });
 
     if (episodes.length > 0) {
-      playEpisode(seasonNumber, episodes[0].episode_number);
+      const saved = getSavedItem(currentItem);
+      const savedEpisode = Number(saved?.savedEpisode || currentItem.savedEpisode);
+      const canResumeSaved =
+        options.resumeSaved !== false &&
+        Number(saved?.savedSeason || currentItem.savedSeason) === seasonNumber &&
+        episodes.some(ep => Number(ep.episode_number) === savedEpisode);
+
+      const startEpisode = canResumeSaved
+        ? savedEpisode
+        : episodes[0].episode_number;
+
+      playEpisode(seasonNumber, startEpisode);
     }
   } catch (err) {
     epList.innerHTML =
@@ -601,38 +724,58 @@ async function loadEpisodes() {
 /* ──────────────────────────────────────────
    WATCH PROGRESS
 ────────────────────────────────────────── */
+let progressSaveTimer = null;
+let pendingProgress = null;
+
 window.addEventListener('message', e => {
   try {
     const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-    if (data?.time !== undefined) saveProgress(data.time, data.duration);
+
+    // Some players send episode info on autoplay-next. If available, keep our state in sync.
+    if (data?.season) currentSeasonNum = Number(data.season) || currentSeasonNum;
+    if (data?.episode) currentEpisodeNum = Number(data.episode) || currentEpisodeNum;
+
+    if (data?.time !== undefined) scheduleProgressSave(data.time, data.duration);
   } catch {
-    // ignore
+    // ignore non-player messages
   }
 }, { passive: true });
+
+function scheduleProgressSave(time, duration) {
+  pendingProgress = { time, duration };
+
+  if (progressSaveTimer) return;
+
+  progressSaveTimer = setTimeout(() => {
+    progressSaveTimer = null;
+    if (!pendingProgress) return;
+
+    const { time, duration } = pendingProgress;
+    pendingProgress = null;
+    saveProgress(time, duration);
+  }, 1200);
+}
 
 function saveProgress(time, duration) {
   if (!currentItem) return;
 
-  let list = getSavedList();
-  const idx = list.findIndex(i => i.id === currentItem.id);
+  const safeTime = Math.max(0, Math.floor(Number(time) || 0));
+  const safeDuration = Math.floor(Number(duration) || 0);
 
-  if (idx === -1) return;
+  const updates = {
+    savedProgress: safeTime,
+    duration: safeDuration || undefined
+  };
 
-  list[idx].savedProgress = Math.floor(time);
-
-  if (duration) {
-    list[idx].duration = Math.floor(duration);
-  }
-
-  if (currentItem.media_type === 'tv' || currentItem.is_anilist) {
-    if (!currentItem.is_anilist) {
-      list[idx].savedSeason = currentSeasonNum;
+  if (currentItem.media_type === 'tv' || currentItem.is_anilist || currentItem.media_type === 'anime') {
+    if (!currentItem.is_anilist && currentItem.media_type !== 'anime') {
+      updates.savedSeason = currentSeasonNum;
     }
 
-    list[idx].savedEpisode = currentEpisodeNum;
+    updates.savedEpisode = currentEpisodeNum;
   }
 
-  localStorage.setItem(CW_KEY, JSON.stringify(list));
+  currentItem = addToContinueWatching(currentItem, updates, { refresh: false });
 }
 
 /* ──────────────────────────────────────────

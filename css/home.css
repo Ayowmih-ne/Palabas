@@ -428,9 +428,9 @@ button { font-family: inherit; -webkit-appearance: none; touch-action: manipulat
   width: 45px; 
   height: 40px; 
   
-  /* GINAWA NATING INVISIBLE */
-  opacity: 1; 
-  background: rgba(255, 0, 0, 0.5); 
+  /* Invisible tap area only; no red box on phone */
+  opacity: 0; 
+  background: transparent; 
   border: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent; /* Tinatanggal yung blue tap effect sa mobile */
